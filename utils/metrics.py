@@ -417,16 +417,12 @@ def data_process(pred, label, threshold=0.5):
     pred[pred >= threshold] = 1
     pred[pred < threshold] = 0
 
-    #np.set_printoptions(threshold=np.inf)
-    #print(pred[:,0,:,:])
-    #print(pred[:,1,:,100:200])
     prediction_copy = copy.deepcopy(pred[:,0,:,:])
     if not np.all(prediction_copy == 0):
         prediction_u = measure_img(pred[:,0,:,:], t_num=1).astype('bool')
         pred1 = prediction_u * prediction_copy
     else:
         pred1 =prediction_copy 
-    #print("0finshed")
     prediction_copy = copy.deepcopy(pred[:,1,:,:])
     if not np.all(prediction_copy == 0):
         prediction_u = measure_img(pred[:,1,:,:], t_num=1).astype('bool')

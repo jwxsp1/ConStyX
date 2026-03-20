@@ -45,7 +45,6 @@ class ResUnet(nn.Module):
     def forward(self, input,target_x,grad,aug=False):
         x, sfs = self.res(input)
         x = F.relu(x)
-
         x = self.up1(x, sfs[3])
         x = self.up2(x, sfs[2])
         x = self.up3(x, sfs[1])

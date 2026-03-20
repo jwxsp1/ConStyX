@@ -24,11 +24,7 @@ def get_train_transform(patch_size=(512, 512)):
     )
     tr_transforms.append(MirrorTransform(axes=(0, 1, 2)))
     tr_transforms.append(BrightnessMultiplicativeTransform((0.7, 1.5), per_channel=True, p_per_sample=0.15))
-    # tr_transforms.append(ContrastAugmentationTransform((0.75, 1.25), per_channel=True, p_per_sample=0.15))
-    # tr_transforms.append(GammaTransform(gamma_range=(0.5, 2), invert_image=True, per_channel=True, p_per_sample=0.15))
     tr_transforms.append(GaussianNoiseTransform(noise_variance=(0, 0.05), p_per_sample=0.15))
-    # tr_transforms.append(GaussianBlurTransform(blur_sigma=(0.5, 1.5), different_sigma_per_channel=True,
-    #                                            p_per_channel=0.5, p_per_sample=0.15))
     tr_transforms = Compose(tr_transforms)
     return tr_transforms
 
@@ -69,5 +65,5 @@ def to_one_hot(pre_mask, classes=2):
     mask = np.zeros((pre_mask.shape[0], pre_mask.shape[1], classes))
     mask[pre_mask == 1] = [1, 0]
     mask[pre_mask == 2] = [1, 1]
-    return mask.transpose(2, 0, 1) #mask[0,:,:]为od，mask[1,:,:]为oc
+    return mask.transpose(2, 0, 1)
 
