@@ -13,9 +13,5 @@ This repo is the PyTorch implementation of our paper:
 
 🔥🔥 Code for generalizable medical image segmentation with ConStyX. 🔥🔥
 
-### 0. Requirements
-The code is developed using Python and PyTorch.
-
-Install the required packages using:
-```bash
-pip install -r requirements.txt
+### 1. Data Preparation
+To do.
