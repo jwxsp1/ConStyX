@@ -18,7 +18,6 @@ from test import Test
 from dataloaders.OPTIC_dataloader import OPTIC_dataset
 from dataloaders.convert_csv_to_list import convert_labeled_list
 from dataloaders.transform import collate_fn_wo_transform, collate_fn_w_transform
-os.environ["CUDA_VISIBLE_DEVICES"] = "7"
 torch.set_num_threads(1)
 
 

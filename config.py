@@ -12,6 +12,16 @@ def dice_coeff(pred, label):
     score = 1 - ((2. * intersection + smooth) / (m1.sum() + m2.sum() + smooth))
     return score
 
+def weight_dice_coeff(pred, label,weight):
+    smooth = 1.
+    bs = pred.size(0)
+    w=weight.contiguous().view(bs, -1)
+    m1 = pred.contiguous().view(bs, -1)
+    m2 = label.contiguous().view(bs, -1)
+    intersection = (w * m1 * m2).sum()
+    score = 1 - ((2. * intersection + smooth) / ((m1*w).sum() + (m2*w).sum() + smooth))
+    return score
+
 
 def jaccard_loss(pred, label):
     smooth = 1.
@@ -33,9 +43,10 @@ def p2p_loss(pred, label):
     return score
 
 
-def bce_loss(pred, label,uncertainty,d_style):
+def bce_loss(pred, label,weight_map):
     bce=torch.nn.BCELoss(reduction='none')
-    score = bce(pred, label)*class_uncertainty
+    score = bce(pred, label)*weight_map
+    #score=bce(pred, label)
     return score.mean()
 
 def bce_loss_ori(pred, label):
@@ -73,9 +84,9 @@ class Seg_loss(nn.Module):
     def __init__(self):
         super(Seg_loss, self).__init__()
 
-    def forward(self, logit_pred, label,semantic_uncertainty,d_style):
+    def forward(self, logit_pred, label,weight_map):
         pred = torch.nn.Sigmoid()(logit_pred)
-        score = dice_coeff(pred=pred, label=label) + bce_loss(pred=pred, label=label,uncertainty=semantic_uncertainty,d_style=d_style)
+        score = dice_coeff(pred=pred, label=label) + bce_loss(pred=pred, label=label,weight_map=weight_map)
         return score
 
 
@@ -85,8 +96,6 @@ class Seg_loss_ori(nn.Module):
 
     def forward(self, logit_pred, label):
         pred = torch.nn.Sigmoid()(logit_pred)
-        #print("------")
-        #print(torch.isnan(pred).float().sum())
         score = dice_coeff(pred=pred, label=label) + bce_loss_ori(pred=logit_pred, label=label)
         return score
 
