@@ -1,6 +1,6 @@
 # coding:utf-8
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = '9'
+os.environ["CUDA_VISIBLE_DEVICES"] = '1'
 import sys, traceback
 import datetime
 import random
@@ -9,14 +9,12 @@ import torch
 import argparse
 
 from torch.utils.data import DataLoader
-#from train_DG import TrainDG
-from train_DG_semantic_aug_scale_val import TrainDG
+from train_DG import TrainDG
 from test import Test
 from dataloaders.OPTIC_dataloader import OPTIC_dataset
 from dataloaders.convert_csv_to_list import convert_labeled_list
 from dataloaders.transform import collate_fn_wo_transform, collate_fn_w_transform
-os.environ["CUDA_VISIBLE_DEVICES"] = "13"
-#torch.set_num_threads(1)
+torch.set_num_threads(1)
 
 
 def seed_torch(seed):
@@ -28,7 +26,6 @@ def seed_torch(seed):
     torch.cuda.manual_seed_all(seed)   # if you are using multi-GPU.
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
-    #cudnn torch.backends.cudnn.enabled = False 
     torch.use_deterministic_algorithms(True)
     os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
     os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':16:8'
@@ -64,7 +61,6 @@ def print_information(config):
     print('target domain: ', config.Target_Dataset)
     print('model: ' + str(config.model_type))
 
-    #print('mixstyle_layers: ', config.mixstyle_layers)
     print('random_type: ', config.random_type)
     print('random_prob: ', config.random_prob)
 
@@ -105,7 +101,6 @@ def main(config):
     source_name = config.Source_Dataset
     source_csv = []
     for s_n in source_name:
-        source_csv.append(s_n + '_test.csv')
         source_csv.append(s_n + '_train.csv')
     print(source_csv)
     sr_img_list, sr_label_list = convert_labeled_list(config.dataset_root, source_csv)
@@ -124,8 +119,8 @@ def main(config):
                                        num_workers=config.num_workers,
                                        drop_last = True)
 
-        target_test_csv = [config.Target_Dataset + '_test.csv', config.Target_Dataset + '_train.csv']
-        ts_img_list, ts_label_list = convert_labeled_list(config.dataset_root, target_test_csv)
+        val_csv = [config.Target_Dataset + '_val.csv']
+        ts_img_list, ts_label_list = convert_labeled_list(config.dataset_root, val_csv)
 
         target_valid_dataset = OPTIC_dataset(config.dataset_root, ts_img_list, ts_label_list,
                                              config.image_size, img_normalize=True)
@@ -144,8 +139,7 @@ def main(config):
         print('Test Target: ' + config.Target_Dataset)
         print('Loading model: ' + str(config.load_time) + '/' + 'best' + '-' + str(config.model_type) + '.pth')
 
-        # target_test_csv = [config.Target_Dataset + '_test.csv']
-        target_test_csv = [config.Target_Dataset + '_test.csv', config.Target_Dataset + '_train.csv']
+        target_test_csv = [config.Target_Dataset + '_val.csv', config.Target_Dataset + '_train.csv']
         print(target_test_csv)
         ts_img_list, ts_label_list = convert_labeled_list(config.dataset_root, target_test_csv)
 
@@ -167,12 +161,10 @@ def main(config):
         print('Loading model: ' + str(config.load_time) + '/' + 'best' + '-' + str(config.model_type) + '.pth')
         Disc_Dice, Disc_ASD, Cup_Dice, Cup_ASD = [], [], [], []
         test_datasets = ['BinRushed', 'Magrabia', 'REFUGE', 'ORIGA', 'Drishti_GS']
-        #test_datasets = ['BinRushed', 'MESSIDOR_Base1', 'MESSIDOR_Base2', 'MESSIDOR_Base3']
-        #test_datasets = ['domain1','domain2', 'domain3', 'domain4']
         test_datasets.remove(config.Target_Dataset)
 
         for target in test_datasets:
-            target_test_csv = [target + '_test.csv', target + '_train.csv']
+            target_test_csv = [target + '_val.csv', target + '_train.csv']
             print(target_test_csv)
             ts_img_list, ts_label_list = convert_labeled_list(config.dataset_root, target_test_csv)
 
@@ -204,7 +196,6 @@ if __name__ == '__main__':
     parser.add_argument('--model_type', type=str, default='Res_Unet', help='Res_Unet')  # choose the model
     parser.add_argument('--backbone', type=str, default='resnet34', help='resnet34/resnet50')
 
-    #parser.add_argument('--mixstyle_layers', nargs='+', type=str, default=['layer1', 'layer2'], help='layer0-4',required=False)
     parser.add_argument('--random_type', type=str, default='TriD', help='TriD/MixStyle/EFDMix')
     parser.add_argument('--random_prob', type=float, default=0.5)
 
@@ -213,6 +204,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--image_size', type=int, default=512)
     parser.add_argument('--num_workers', type=int, default=4)
+    parser.add_argument('--consume', type=bool, default=False)
 
     parser.add_argument('--optimizer', type=str, default='SGD', help='SGD/Adam/AdamW')
     parser.add_argument('--lr_scheduler', type=str, default='Epoch',
@@ -233,7 +225,7 @@ if __name__ == '__main__':
     parser.add_argument('--path_save_result', type=str, default='./results/')
     parser.add_argument('--path_save_model', type=str, default='./models/')
     parser.add_argument('--path_save_log', type=str, default='./logs/')
-    parser.add_argument('--dataset_root', type=str, default='/home/daocp01/cx/DataSet/Processed_Fundus_Images')
+    parser.add_argument('--dataset_root', type=str, default='./DataSet/Processed_Fundus_Images_val')
 
     if torch.cuda.is_available():
         parser.add_argument('--device', type=str, default='cuda:0')

@@ -1,15 +1,15 @@
 import torch
 from dataloaders.normalize import normalize_image, normalize_image_to_0_1
 from torchnet import meter
-from networks.new_ResUnet import ResUnet
-from config import *
+from networks.semantic_aug_ResUnet_scale_weight import ResUnet
+from config_weight import *
 import numpy as np
 from tensorboardX import SummaryWriter
 from test import Test
 import datetime
-import tqdm
-from tqdm import tqdm 
-
+from tqdm import tqdm
+import time
+from utils.semantic_aug import cal_weight_map 
 
 class TrainDG:
     def __init__(self, config, train_loader, valid_loader=None):
@@ -24,7 +24,7 @@ class TrainDG:
         self.out_ch = config.out_ch
         self.image_size = config.image_size
         self.model_type = config.model_type
-        self.mixstyle_layers = config.mixstyle_layers
+        #self.mixstyle_layers = config.mixstyle_layers
         self.random_type = config.random_type
         self.random_prob = config.random_prob
 
@@ -46,22 +46,29 @@ class TrainDG:
         # 路径设置
         self.model_path = config.model_path
         self.result_path = config.result_path
-
+        self.consume_path=None
         # 其他
         self.log_path = config.log_path
         self.warm_up = -1
-        self.valid_frequency = 10   # 多少轮测试一次
+        self.valid_frequency = 1   # 多少轮测试一次
         self.device = config.device
-
+        self.consume=config.consume
         self.build_model()
         self.print_network()
+        self.pix_grad = None
 
     def build_model(self):
         if self.model_type == 'Res_Unet':
             self.model = ResUnet(resnet=self.backbone, num_classes=self.out_ch, pretrained=True,
-                                 mixstyle_layers=self.mixstyle_layers, random_type=self.random_type, p=self.random_prob).to(self.device)
+                                 mixstyle_layers=[], random_type=self.random_type, p=self.random_prob).to(self.device)
         else:
             raise ValueError('The model type is wrong!')
+        if self.consume:
+
+            checkpoint = torch.load(self.consume_path + '/' + 'latest' + '-' + self.model_type + '.pth',
+                                    map_location=lambda storage, loc: storage.cuda(0))
+            self.model.load_state_dict(checkpoint)
+            self.model = self.model.to(self.device)
 
         if self.optim == 'SGD':
             self.optimizer = torch.optim.SGD(
@@ -102,94 +109,73 @@ class TrainDG:
             num_params += p.numel()
         # print(model)
         print("The number of total parameters: {}".format(num_params))
-    
-    @torch.no_grad()
-    def uncertainty_estimation(self,output, sigma=0.05):
-        disc_uncertainties = []
-        cup_uncertainties = []
 
-        sigmoid_output = torch.sigmoid(output)
-
-        disc_probabilities = sigmoid_output[:, 0, :, :].unsqueeze(1)
-        cup_probabilities = sigmoid_output[:, 1, :, :].unsqueeze(1)
-        disc_uncertainties.append(disc_probabilities)
-        cup_uncertainties.append(cup_probabilities)
-
-        disc_uncertainty = torch.stack(disc_uncertainties).mean(dim=0)
-        cup_uncertainty = torch.stack(cup_uncertainties).mean(dim=0)
-        #disc_entropy = -torch.sum(disc_uncertainty * torch.log(disc_uncertainty + 1e-10), dim=1)
-        #cup_entropy = -torch.sum(cup_uncertainty * torch.log(cup_uncertainty + 1e-10), dim=1)
-        disc_entropy=-disc_uncertainty * torch.log(disc_uncertainty + 1e-10)+ \
-                     -(1-disc_uncertainty)*torch.log((1-disc_uncertainty) + 1e-10)
-        
-        cup_entropy=-cup_uncertainty * torch.log(cup_uncertainty + 1e-10)+ \
-                    -(1-cup_uncertainty)*torch.log((1-cup_uncertainty) + 1e-10)
-
-        min_value = 0.6
-        max_value = 1
-        disc_entropy = min_value + (disc_entropy - disc_entropy.min()) * (max_value - min_value) / (
-                disc_entropy.max() - disc_entropy.min())
-        cup_entropy = min_value + (cup_entropy - cup_entropy.min()) * (max_value - min_value) / (
-                cup_entropy.max() - cup_entropy.min())
-
-        class_entropy = torch.cat([disc_entropy,cup_entropy],dim=1) #(b,2,h,w)
-
-        return class_entropy
+    def backward_hook(self,module, grad_input, grad_output):
+        #print(grad_input[0].shape)
+        self.pix_grad=grad_input[0]
 
     def run(self):
-        
+        best_val_avg=0.0
         writer = SummaryWriter(self.log_path.replace('.log', '.writer'))
         best_loss, best_epoch = np.inf, 0
         loss_meter = meter.AverageValueMeter()
 
         metrics_l = {'Disc_Dice': [], 'Disc_ASD': [], 'Cup_Dice': [], 'Cup_ASD': []}
         metric_dict = ['Disc_Dice', 'Disc_ASD', 'Cup_Dice', 'Cup_ASD']
-
+        handler = self.model.seg_head.register_full_backward_hook(self.backward_hook)
         for epoch in tqdm(range(self.num_epochs)):
             self.model.train()
-            print()
             print("Epoch:{}/{}".format(epoch + 1, self.num_epochs))
             print("Training...")
             print("Learning rate: " + str(self.optimizer.param_groups[0]["lr"]))
             loss_meter.reset()
             start_time = datetime.datetime.now()
             for batch, data in enumerate(self.train_loader):
-                x, y = data['data'], data['mask']
+                x, y,ori_mask = data['data'], data['mask'],data['ori_mask']
                 x = torch.from_numpy(normalize_image(x)).to(dtype=torch.float32)
                 y = torch.from_numpy(y).to(dtype=torch.float32)
+                ori_mask=torch.from_numpy(ori_mask).to(dtype=torch.float32)
+                x, y,ori_mask= x.to(self.device), y.to(self.device),ori_mask.to(self.device)
 
-                x, y = x.to(self.device), y.to(self.device)
-                pred,d_style= self.model(x)
-                output=pred.detach()
-                semantic_uncertainty=self.uncertainty_estimation(output)
-
-                loss = self.seg_cost(pred, y,semantic_uncertainty,d_style)
+                first_pred,ori_feaures= self.model(x,ori_mask,self.pix_grad,aug=False)
+                weight_map=torch.ones_like(first_pred)
+                loss = self.seg_cost(first_pred, y,weight_map)
                 self.optimizer.zero_grad()
-                loss.backward()
-                #print(loss.sum().item())
-                loss_meter.add(loss.sum().item())
+                loss.backward(retain_graph=True) 
+ 
+                pred,aug_features= self.model(x,ori_mask,self.pix_grad.detach(),aug=True)
+                conf=pred.detach()
+                weight_map=cal_weight_map(ori_feaures,aug_features,conf,sim_threhold=0.6)
 
+                loss = self.seg_cost(pred, y,weight_map)
+               
+                loss.backward()
+                loss_meter.add(loss.sum().item())
                 self.optimizer.step()
 
             if self.scheduler is not None:
                 self.scheduler.step()
+        
 
             writer.add_scalar('Total_Loss_Epoch', loss_meter.value()[0], epoch + 1)
 
             print("Train ———— Total_Loss:{:.8f}".format(loss_meter.value()[0]))
-
-            if best_loss > loss_meter.value()[0]:
-                best_loss = loss_meter.value()[0]
-                best_epoch = (epoch + 1)
-
-                if torch.cuda.device_count() > 1:
-                    torch.save(self.model.module.state_dict(), self.model_path + '/' + 'best' + '-' + self.model_type + '.pth')
-                else:
-                    torch.save(self.model.state_dict(), self.model_path + '/' + 'best' + '-' + self.model_type + '.pth')
-
+            if torch.cuda.device_count() > 1:
+                torch.save(self.model.module.state_dict(), self.model_path + '/' + 'latest' + '-' + self.model_type + '.pth')
+            else:
+                torch.save(self.model.state_dict(), self.model_path + '/' + 'latest' + '-' + self.model_type + '.pth')
             if (epoch + 1) % self.valid_frequency == 0 and self.valid_loader is not None:
                 test = Test(config=self.config, test_loader=self.valid_loader)
                 result_dict = test.test()
+                print("res:")
+                print((float(result_dict['Disc_Dice'])+float(result_dict['Cup_Dice']))/2)
+                if ((float(result_dict['Disc_Dice'])+float(result_dict['Cup_Dice']))/2>best_val_avg):
+                    best_val_avg=(float(result_dict['Disc_Dice'])+float(result_dict['Cup_Dice']))/2
+                    if torch.cuda.device_count() > 1:
+                        torch.save(self.model.module.state_dict(), self.model_path + '/' + 'best-val' + '-' + self.model_type + '.pth')
+                    else:
+                        torch.save(self.model.state_dict(), self.model_path + '/' + 'best-val' + '-' + self.model_type + '.pth')
+
                 writer.add_scalar('Valid Disc Dice', result_dict['Disc_Dice'], (epoch + 1) // self.valid_frequency)
                 writer.add_scalar('Valid Cup Dice', result_dict['Cup_Dice'], (epoch + 1) // self.valid_frequency)
                 del test
@@ -206,4 +192,3 @@ class TrainDG:
             torch.save(self.model.state_dict(), self.model_path + '/' + 'last' + '-' + self.model_type + '.pth')
         print('The best total loss:{} epoch:{}'.format(best_loss, best_epoch))
         writer.close()
-
