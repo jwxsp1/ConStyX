@@ -9,11 +9,7 @@ import torch
 import argparse
 
 from torch.utils.data import DataLoader
-#from train_DG import TrainDG
-#from train_DG_semantic_aug_val import TrainDG
 from train_DG_semantic_aug_scale_val_weight import TrainDG
-#from train_DG_semantic_aug_scale_val_ori import TrainDG
-#from train_DG_semantic_aug import TrainDG
 from test import Test
 from dataloaders.OPTIC_dataloader import OPTIC_dataset
 from dataloaders.convert_csv_to_list import convert_labeled_list
@@ -30,7 +26,6 @@ def seed_torch(seed):
     torch.cuda.manual_seed_all(seed)   # if you are using multi-GPU.
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
-    #cudnn torch.backends.cudnn.enabled = False 
     torch.use_deterministic_algorithms(True)
     os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
     os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':16:8'
@@ -66,7 +61,6 @@ def print_information(config):
     print('target domain: ', config.Target_Dataset)
     print('model: ' + str(config.model_type))
 
-    #print('mixstyle_layers: ', config.mixstyle_layers)
     print('random_type: ', config.random_type)
     print('random_prob: ', config.random_prob)
 
@@ -107,7 +101,6 @@ def main(config):
     source_name = config.Source_Dataset
     source_csv = []
     for s_n in source_name:
-        #source_csv.append(s_n + '_test.csv')
         source_csv.append(s_n + '_train.csv')
     print(source_csv)
     sr_img_list, sr_label_list = convert_labeled_list(config.dataset_root, source_csv)
@@ -146,7 +139,6 @@ def main(config):
         print('Test Target: ' + config.Target_Dataset)
         print('Loading model: ' + str(config.load_time) + '/' + 'best' + '-' + str(config.model_type) + '.pth')
 
-        # target_test_csv = [config.Target_Dataset + '_test.csv']
         target_test_csv = [config.Target_Dataset + '_val.csv', config.Target_Dataset + '_train.csv']
         print(target_test_csv)
         ts_img_list, ts_label_list = convert_labeled_list(config.dataset_root, target_test_csv)
@@ -169,8 +161,6 @@ def main(config):
         print('Loading model: ' + str(config.load_time) + '/' + 'best' + '-' + str(config.model_type) + '.pth')
         Disc_Dice, Disc_ASD, Cup_Dice, Cup_ASD = [], [], [], []
         test_datasets = ['BinRushed', 'Magrabia', 'REFUGE', 'ORIGA', 'Drishti_GS']
-        #test_datasets = ['BinRushed', 'MESSIDOR_Base1', 'MESSIDOR_Base2', 'MESSIDOR_Base3']
-        #test_datasets = ['domain1','domain2', 'domain3', 'domain4']
         test_datasets.remove(config.Target_Dataset)
 
         for target in test_datasets:
@@ -206,7 +196,6 @@ if __name__ == '__main__':
     parser.add_argument('--model_type', type=str, default='Res_Unet', help='Res_Unet')  # choose the model
     parser.add_argument('--backbone', type=str, default='resnet34', help='resnet34/resnet50')
 
-    #parser.add_argument('--mixstyle_layers', nargs='+', type=str, default=['layer1', 'layer2'], help='layer0-4',required=False)
     parser.add_argument('--random_type', type=str, default='TriD', help='TriD/MixStyle/EFDMix')
     parser.add_argument('--random_prob', type=float, default=0.5)
 
