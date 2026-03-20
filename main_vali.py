@@ -225,7 +225,7 @@ if __name__ == '__main__':
     parser.add_argument('--path_save_result', type=str, default='./results/')
     parser.add_argument('--path_save_model', type=str, default='./models/')
     parser.add_argument('--path_save_log', type=str, default='./logs/')
-    parser.add_argument('--dataset_root', type=str, default='/home/daocp01/cx/DataSet/Processed_Fundus_Images_val')
+    parser.add_argument('--dataset_root', type=str, default='./DataSet/Processed_Fundus_Images_val')
 
     if torch.cuda.is_available():
         parser.add_argument('--device', type=str, default='cuda:0')
