@@ -36,23 +36,11 @@ def p2p_loss(pred, label):
 def bce_loss(pred, label,uncertainty,d_style):
     bce=torch.nn.BCELoss(reduction='none')
     score = bce(pred, label)*class_uncertainty
-    #score=bce(pred, label)
     return score.mean()
 
 def bce_loss_ori(pred, label):
     bce=torch.nn.BCEWithLogitsLoss(reduction='mean')
-    #print(torch.isnan(pred).float().sum())
-    #print("(pred>1).float().sum()")
-    #print((pred>1).float().sum())
-    #print("(pred<0).float().sum()")
-    #print((pred<0).float().sum())
-    #print("(label>1).float().sum()")
-    #print((label>1).float().sum())
-    #print("(label<0).float().sum()")
-    #print((label<0).float().sum())
-    #pprint(label)
     score = bce(pred, label)
-    #score=bce(pred, label)
     if torch.isnan(score):
         print("bce loss nan")
     return score
