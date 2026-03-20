@@ -60,10 +60,9 @@ def print_information(config):
     print('source domain: ', config.Source_Dataset)
     print('target domain: ', config.Target_Dataset)
     print('model: ' + str(config.model_type))
-
+    print('mixstyle_layers: ', config.mixstyle_layers)
     print('random_type: ', config.random_type)
     print('random_prob: ', config.random_prob)
-
     print('input size: ', config.image_size)
     print('batch size: ', config.batch_size)
 
@@ -76,7 +75,6 @@ def print_information(config):
 
 
 def main(config):
-    seed_torch(1234)
     config.time_now = datetime.datetime.now().__format__("%Y%m%d_%H%M%S_%f")
 
     if config.load_time is not None:
@@ -119,7 +117,7 @@ def main(config):
                                        num_workers=config.num_workers,
                                        drop_last = True)
 
-        val_csv = [config.Target_Dataset + '_val.csv']
+        val_csv = [config.Source_Dataset[0] + '_val.csv']
         ts_img_list, ts_label_list = convert_labeled_list(config.dataset_root, val_csv)
 
         target_valid_dataset = OPTIC_dataset(config.dataset_root, ts_img_list, ts_label_list,
@@ -157,11 +155,11 @@ def main(config):
 
     elif config.mode == 'multi_test':
         print('Multi_test for single-source domain generalization...')
-        print('Train Source: ' + config.Target_Dataset)
+        print('Train Source: ' + config.Source_Dataset[0])
         print('Loading model: ' + str(config.load_time) + '/' + 'best' + '-' + str(config.model_type) + '.pth')
         Disc_Dice, Disc_ASD, Cup_Dice, Cup_ASD = [], [], [], []
         test_datasets = ['BinRushed', 'Magrabia', 'REFUGE', 'ORIGA', 'Drishti_GS']
-        test_datasets.remove(config.Target_Dataset)
+        test_datasets.remove(config.Source_Dataset[0])
 
         for target in test_datasets:
             target_test_csv = [target + '_val.csv', target + '_train.csv']
@@ -196,25 +194,22 @@ if __name__ == '__main__':
     parser.add_argument('--model_type', type=str, default='Res_Unet', help='Res_Unet')  # choose the model
     parser.add_argument('--backbone', type=str, default='resnet34', help='resnet34/resnet50')
 
-    parser.add_argument('--random_type', type=str, default='TriD', help='TriD/MixStyle/EFDMix')
-    parser.add_argument('--random_prob', type=float, default=0.5)
-
     parser.add_argument('--in_ch', type=int, default=3)
     parser.add_argument('--out_ch', type=int, default=2)
 
     parser.add_argument('--image_size', type=int, default=512)
     parser.add_argument('--num_workers', type=int, default=4)
     parser.add_argument('--consume', type=bool, default=False)
-
+    parser.add_argument('--mixstyle_layers', nargs='+', type=str, default=None, help='layer0-4')
+    parser.add_argument('--random_type', type=str, default=None, help='TriD/MixStyle/EFDMix')
+    parser.add_argument('--random_prob', type=float, default=None)
     parser.add_argument('--optimizer', type=str, default='SGD', help='SGD/Adam/AdamW')
     parser.add_argument('--lr_scheduler', type=str, default='Epoch',
                         help='Cosine/Step/Epoch')   # choose the decrease strategy of lr
     parser.add_argument('--lr', type=float, default=1e-3)
     parser.add_argument('--weight_decay', type=float, default=0.0005)  # weight_decay in SGD
     parser.add_argument('--momentum', type=float, default=0.99)  # momentum in SGD
-    parser.add_argument('--beta1', type=float, default=0.9)  # beta1 in Adam/AdamW
-    parser.add_argument('--beta2', type=float, default=0.99)  # beta2 in Adam/AdamW
-    parser.add_argument('--num_epochs', type=int, default=60)
+    parser.add_argument('--num_epochs', type=int, default=100)
     parser.add_argument('--batch_size', type=int, default=8)
 
     parser.add_argument('--Source_Dataset', nargs='+', type=str, default=['Drishti_GS'],
@@ -225,7 +220,7 @@ if __name__ == '__main__':
     parser.add_argument('--path_save_result', type=str, default='./results/')
     parser.add_argument('--path_save_model', type=str, default='./models/')
     parser.add_argument('--path_save_log', type=str, default='./logs/')
-    parser.add_argument('--dataset_root', type=str, default='./DataSet/Processed_Fundus_Images_val')
+    parser.add_argument('--dataset_root', type=str, default='./dataset/')
 
     if torch.cuda.is_available():
         parser.add_argument('--device', type=str, default='cuda:0')

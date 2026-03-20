@@ -7,8 +7,8 @@ from utils.semantic_aug import EstimatorCV,semantic_aug,style_aug
 import time
 
 class ResUnet(nn.Module):
-    def __init__(self, resnet='resnet34', num_classes=2, pretrained=False, mixstyle_layers=[],
-                 random_type=None, p=0.5):
+    def __init__(self, resnet='resnet34', num_classes=2, pretrained=False, mixstyle_layers=None,
+                 random_type=None, p=None):
         super().__init__()
         if resnet == 'resnet34':
             base_model = resnet34
@@ -27,7 +27,7 @@ class ResUnet(nn.Module):
                             'resnet101 and resnet152')
 
         self.mixstyle_layers = mixstyle_layers
-        self.res = base_model(pretrained=pretrained, mixstyle_layers=[], random_type=random_type, p=p)
+        self.res = base_model(pretrained=pretrained, mixstyle_layers=None, random_type=random_type, p=p)
 
         self.num_classes = num_classes
 
@@ -45,6 +45,7 @@ class ResUnet(nn.Module):
     def forward(self, input,target_x,grad,aug=False):
         x, sfs = self.res(input)
         x = F.relu(x)
+
         x = self.up1(x, sfs[3])
         x = self.up2(x, sfs[2])
         x = self.up3(x, sfs[1])

@@ -8,20 +8,18 @@ from utils.metrics import calculate_metrics
 
 class Test:
     def __init__(self, config, test_loader):
-        # 数据加载
+
         self.test_loader = test_loader
 
-        # 模型
+
         self.model = None
         self.backbone = config.backbone
         self.model_type = config.model_type
 
-        # 路径设置
         self.target = config.Target_Dataset
         self.result_path = config.result_path
         self.model_path = config.model_path
 
-        # 其他
         self.out_ch = config.out_ch
         self.image_size = config.image_size
         self.mode = config.mode
@@ -47,7 +45,7 @@ class Test:
         num_params = 0
         for p in model.parameters():
             num_params += p.numel()
-        # print(model)
+
         print("The number of parameters: {}".format(num_params))
 
     def test(self):

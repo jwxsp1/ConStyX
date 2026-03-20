@@ -2,7 +2,7 @@ import torch
 from dataloaders.normalize import normalize_image, normalize_image_to_0_1
 from torchnet import meter
 from networks.semantic_aug_ResUnet_scale_weight import ResUnet
-from config_weight import *
+from config import *
 import numpy as np
 from tensorboardX import SummaryWriter
 from test import Test
@@ -13,25 +13,20 @@ from utils.semantic_aug import cal_weight_map
 
 class TrainDG:
     def __init__(self, config, train_loader, valid_loader=None):
-        # 数据加载
         self.config = config
         self.train_loader = train_loader
         self.valid_loader = valid_loader
 
-        # 模型
         self.backbone = config.backbone
         self.in_ch = config.in_ch
         self.out_ch = config.out_ch
         self.image_size = config.image_size
         self.model_type = config.model_type
-        #self.mixstyle_layers = config.mixstyle_layers
         self.random_type = config.random_type
         self.random_prob = config.random_prob
 
-        # 损失函数
         self.seg_cost = Seg_loss()
 
-        # 优化器
         self.optim = config.optimizer
         self.lr_scheduler = config.lr_scheduler
         self.lr = config.lr
@@ -39,18 +34,18 @@ class TrainDG:
         self.weight_decay = config.weight_decay
         self.betas = (config.beta1, config.beta2)
 
-        # 训练设置
+
         self.num_epochs = config.num_epochs
         self.batch_size = config.batch_size
 
-        # 路径设置
+
         self.model_path = config.model_path
         self.result_path = config.result_path
         self.consume_path=None
-        # 其他
+
         self.log_path = config.log_path
         self.warm_up = -1
-        self.valid_frequency = 1   # 多少轮测试一次
+        self.valid_frequency = 1  
         self.device = config.device
         self.consume=config.consume
         self.build_model()
@@ -60,7 +55,7 @@ class TrainDG:
     def build_model(self):
         if self.model_type == 'Res_Unet':
             self.model = ResUnet(resnet=self.backbone, num_classes=self.out_ch, pretrained=True,
-                                 mixstyle_layers=[], random_type=self.random_type, p=self.random_prob).to(self.device)
+                                 mixstyle_layers=None, random_type=self.random_type, p=self.random_prob).to(self.device)
         else:
             raise ValueError('The model type is wrong!')
         if self.consume:
@@ -107,11 +102,9 @@ class TrainDG:
         num_params = 0
         for p in self.model.parameters():
             num_params += p.numel()
-        # print(model)
         print("The number of total parameters: {}".format(num_params))
 
     def backward_hook(self,module, grad_input, grad_output):
-        #print(grad_input[0].shape)
         self.pix_grad=grad_input[0]
 
     def run(self):
