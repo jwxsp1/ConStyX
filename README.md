@@ -29,7 +29,6 @@ dataset/
 ### 2.OD/OC Segmentation
 We take the scenario using BinRushed (target domain) and other four datasets (source domains) as the example.
 ```
-cd OPTIC
 # Training
 CUDA_VISIBLE_DEVICES=0 python main.py --mode train_DG --num_epochs 100 --Source_Dataset BinRushed
 # Test
