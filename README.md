@@ -26,7 +26,7 @@ dataset/
 |   |   |-- mask
 ...
 ```
-### 2.OD/OC Segmentation
+### 2. OD/OC Segmentation
 We take the scenario using BinRushed (target domain) and other four datasets (source domains) as the example.
 ```
 # Training
