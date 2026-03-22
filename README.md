@@ -32,7 +32,7 @@ We take the scenario using BinRushed (target domain) and other four datasets (so
 # Training
 CUDA_VISIBLE_DEVICES=0 python main.py --mode train_DG --num_epochs 100 --Source_Dataset BinRushed
 # Test
-CUDA_VISIBLE_DEVICES=0 python main.py --mode multi_test --load_time TIME_OF_MODEL --Source_Dataset BinRushed
+CUDA_VISIBLE_DEVICES=0 python test.py --mode multi_test --load_time TIME_OF_MODEL --Source_Dataset BinRushed
 ```
 ## Citation
 If you find this project useful, please consider citing:
