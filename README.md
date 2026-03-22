@@ -49,4 +49,4 @@ If you find this project useful, please consider citing:
 ## Acknowledgements
 Part of the code is revised from the Pytorch implementation of [TriD](https://github.com/Chen-Ziyang/TriD)
 
-Thanks to the authors for providing the processed data..
+Thanks to the authors for providing the processed data.
